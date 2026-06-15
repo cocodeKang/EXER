@@ -1,1 +1,1656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#176b4d">
+  <title>운동 기록장</title>
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --surface: #ffffff;
+      --surface-soft: #edf4f0;
+      --line: #d8e2dc;
+      --text: #16221c;
+      --muted: #637169;
+      --primary: #176b4d;
+      --primary-dark: #0f5139;
+      --accent: #235da8;
+      --danger: #b42318;
+      --warning: #9a6700;
+      --radius: 8px;
+      --shadow: 0 8px 24px rgba(23, 60, 43, 0.08);
+    }
 
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans KR", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+
+    .app-shell {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 14px 0 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .88rem;
+      white-space: nowrap;
+    }
+
+    .account-area {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .sync-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #8a9690;
+    }
+
+    .sync-dot.online { background: #168553; }
+    .sync-dot.error { background: var(--danger); }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin: 18px 0 22px;
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+    }
+
+    .tab {
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 11px 14px 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .page { display: none; }
+    .page.active { display: block; animation: pageIn .18s ease-out; }
+
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel + .panel { margin-top: 16px; }
+    .panel-head { padding: 18px 20px 0; }
+    .panel-body { padding: 18px 20px 20px; }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .panel-desc {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.55;
+    }
+
+    .hero-action {
+      min-height: 310px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 36px 20px;
+    }
+
+    .hero-action h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.65rem, 4vw, 2.5rem);
+    }
+
+    .hero-action p {
+      max-width: 520px;
+      margin: 0 auto 24px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .btn {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 10px 15px;
+      font-weight: 750;
+      transition: background .15s ease, transform .15s ease, border-color .15s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); border-color: #b8c8bf; }
+    .btn:disabled { cursor: not-allowed; opacity: .55; transform: none; }
+    .btn-primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .btn-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
+    .btn-large { min-width: 190px; min-height: 52px; font-size: 1.05rem; }
+    .btn-block { width: 100%; }
+
+    .session-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      color: var(--primary);
+      font-size: .8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .session-title {
+      margin: 5px 0 0;
+      font-size: 1.45rem;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.25rem;
+      font-weight: 850;
+      color: var(--primary);
+    }
+
+    .current-exercise {
+      margin-top: 18px;
+      padding: 18px;
+      border-left: 4px solid var(--primary);
+      background: var(--surface-soft);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+
+    .current-exercise h3 { margin: 0 0 6px; }
+    .current-exercise p { margin: 0; color: var(--muted); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .stat {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .stat span { display: block; color: var(--muted); font-size: .78rem; }
+    .stat strong { display: block; margin-top: 4px; font-size: 1.1rem; }
+
+    .entry-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 90px 150px;
+      gap: 10px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #3d4c44;
+      font-size: .87rem;
+      font-weight: 700;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #bdcbc3;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(23, 107, 77, .12);
+    }
+
+    textarea { min-height: 112px; resize: vertical; line-height: 1.55; }
+
+    .set-list, .history-list, .reflection-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .set-row, .history-item, .reflection-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 14px;
+    }
+
+    .set-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .set-row b { font-size: .95rem; }
+    .set-row span { color: var(--muted); font-size: .88rem; }
+
+    .actions {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    .session-actions {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .empty {
+      padding: 30px 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed #bdcbc3;
+      border-radius: var(--radius);
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+
+    .summary-table th, .summary-table td {
+      padding: 11px 9px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .summary-table th { color: var(--muted); font-size: .8rem; }
+    .summary-table td:nth-child(n+2) { font-variant-numeric: tabular-nums; }
+
+    .ai-summary {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #bdd0e8;
+      border-radius: var(--radius);
+      background: #f3f7fc;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .history-top, .reflection-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .history-top h3, .reflection-top h3 { margin: 0 0 6px; font-size: 1rem; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--primary-dark);
+      font-size: .76rem;
+      font-weight: 800;
+    }
+
+    .reflection-content {
+      margin-top: 11px;
+      color: #36463d;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .answer-box {
+      margin-top: 12px;
+      padding: 12px;
+      border-left: 3px solid var(--accent);
+      background: #f4f7fb;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-field + .form-field { margin-top: 12px; }
+    .callout {
+      border-left: 4px solid var(--warning);
+      background: #fff9e8;
+      padding: 14px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      line-height: 1.6;
+      color: #564719;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 28, 21, .52);
+      animation: fadeIn .16s ease-out;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal {
+      width: min(720px, 100%);
+      max-height: min(760px, calc(100vh - 36px));
+      overflow: auto;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .22);
+    }
+
+    .modal-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .modal-head h2 { margin: 0; font-size: 1.25rem; }
+    .modal-head p { margin: 6px 0 0; color: var(--muted); font-size: .88rem; }
+    .modal-body { padding: 18px 20px 22px; }
+
+    .exercise-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .exercise-option {
+      min-height: 86px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: left;
+    }
+
+    .exercise-option:hover { border-color: var(--primary); background: var(--surface-soft); }
+    .exercise-option b { display: block; font-size: 1rem; }
+    .exercise-option span { display: block; margin-top: 6px; color: var(--muted); font-size: .8rem; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      z-index: 50;
+      max-width: calc(100% - 30px);
+      transform: translate(-50%, 18px);
+      padding: 11px 15px;
+      border-radius: 7px;
+      background: #14251c;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 860px) {
+      .workspace { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; }
+    }
+
+    @media (max-width: 620px) {
+      .app-shell { width: min(100% - 18px, 1180px); padding-top: 8px; }
+      .topbar { display: block; }
+      .sync-status { margin-top: 10px; white-space: normal; }
+      .tabs { margin-top: 12px; }
+      .panel-head, .panel-body { padding-left: 14px; padding-right: 14px; }
+      .stats-grid, .form-grid { grid-template-columns: 1fr; }
+      .entry-row { grid-template-columns: 1fr 86px; }
+      .entry-row .btn { grid-column: 1 / -1; }
+      .session-actions { grid-template-columns: 1fr; }
+      .exercise-grid { grid-template-columns: 1fr; }
+      .summary-table { min-width: 560px; }
+      .table-scroll { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>운동 기록장</h1>
+        <p>운동 세트, 질문과 성찰을 한곳에 기록합니다.</p>
+      </div>
+      <div class="account-area">
+        <div class="sync-status">
+          <span class="sync-dot" id="syncDot"></span>
+          <span id="syncText">기기 저장 모드</span>
+        </div>
+        <button class="btn btn-primary" id="loginBtn">Google 로그인</button>
+        <button class="btn" id="logoutBtn" hidden>로그아웃</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="주요 메뉴">
+      <button class="tab active" data-page="workout">운동</button>
+      <button class="tab" data-page="history">기록</button>
+      <button class="tab" data-page="reflection">질문과 성찰</button>
+      <button class="tab" data-page="settings">설정</button>
+    </nav>
+
+    <main>
+      <section class="page active" id="page-workout">
+        <div id="idleWorkout" class="panel hero-action">
+          <div>
+            <h2>오늘 운동을 시작할까요?</h2>
+            <p>시작 시각이 자동으로 기록됩니다. 운동을 하나 선택하고 세트를 완료할 때마다 다음 운동을 다시 선택할 수 있습니다.</p>
+            <button class="btn btn-primary btn-large" id="startWorkoutBtn">운동 시작</button>
+          </div>
+        </div>
+
+        <div id="activeWorkout" class="workspace" hidden>
+          <div>
+            <section class="panel">
+              <div class="panel-body">
+                <div class="session-head">
+                  <div>
+                    <div class="eyebrow">운동 진행 중</div>
+                    <h2 class="session-title" id="sessionDate">-</h2>
+                    <div class="meta" id="sessionTimeMeta"></div>
+                  </div>
+                  <div class="timer" id="sessionTimer">00:00:00</div>
+                </div>
+
+                <div id="exerciseEntry" hidden>
+                  <div class="current-exercise">
+                    <h3 id="currentExerciseName">운동을 선택하세요</h3>
+                    <p id="currentExerciseSet">세트 기록을 입력합니다.</p>
+                  </div>
+
+                  <div class="stats-grid">
+                    <div class="stat"><span>최고 1세트</span><strong id="statSetBest">-</strong></div>
+                    <div class="stat"><span>최고 하루 합계</span><strong id="statDayBest">-</strong></div>
+                    <div class="stat"><span>평균 1세트</span><strong id="statAverage">-</strong></div>
+                  </div>
+
+                  <div class="entry-row">
+                    <div>
+                      <label for="setValue">이번 세트 기록</label>
+                      <input id="setValue" type="number" min="0" step="1" inputmode="decimal" placeholder="기록 입력">
+                    </div>
+                    <div>
+                      <label for="setUnit">단위</label>
+                      <select id="setUnit">
+                        <option value="회">회</option>
+                        <option value="초">초</option>
+                        <option value="분">분</option>
+                        <option value="km">km</option>
+                      </select>
+                    </div>
+                    <button class="btn btn-primary" id="completeSetBtn">세트 완료</button>
+                  </div>
+                </div>
+
+                <div class="session-actions">
+                  <button class="btn" id="chooseExerciseBtn">운동 선택</button>
+                  <button class="btn btn-danger" id="endWorkoutBtn">운동 종료 및 백업</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">오늘 완료한 세트</h2>
+                <p class="panel-desc">같은 운동을 다시 선택하면 다음 세트로 기록됩니다.</p>
+              </div>
+              <div class="panel-body">
+                <div class="set-list" id="currentSetList"></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <section class="panel" id="completedSummaryPanel" hidden>
+          <div class="panel-head">
+            <h2 class="panel-title">오늘 운동 요약</h2>
+            <p class="panel-desc">운동 종료 시 자동으로 만들어진 요약표입니다.</p>
+          </div>
+          <div class="panel-body" id="completedSummary"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-history">
+        <div class="workspace">
+          <div>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">운동 기록</h2>
+                <p class="panel-desc">저장된 운동 세션과 자동 요약을 확인합니다.</p>
+              </div>
+              <div class="panel-body">
+                <div class="history-list" id="historyList"></div>
+              </div>
+            </section>
+          </div>
+          <aside>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">누적 현황</h2>
+              </div>
+              <div class="panel-body">
+                <div class="stats-grid">
+                  <div class="stat"><span>운동일</span><strong id="totalDays">0</strong></div>
+                  <div class="stat"><span>전체 세트</span><strong id="totalSets">0</strong></div>
+                  <div class="stat"><span>최근 운동</span><strong id="lastWorkout">-</strong></div>
+                </div>
+                <button class="btn btn-block" id="exportBtn">전체 기록 JSON 백업</button>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page" id="page-reflection">
+        <div class="workspace">
+          <div>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">새 질문 또는 성찰</h2>
+                <p class="panel-desc">답변이 추가되면 내용이 자동 분류되고 핵심이 요약됩니다.</p>
+              </div>
+              <div class="panel-body">
+                <div class="form-grid">
+                  <div>
+                    <label for="reflectionType">기록 종류</label>
+                    <select id="reflectionType">
+                      <option value="질문">질문</option>
+                      <option value="성찰">성찰</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="reflectionCategory">직접 분류</label>
+                    <select id="reflectionCategory">
+                      <option value="자동">자동 분류</option>
+                      <option value="운동방법">운동방법</option>
+                      <option value="목표">목표</option>
+                      <option value="통증·안전">통증·안전</option>
+                      <option value="회복">회복</option>
+                      <option value="영양·에너지">영양·에너지</option>
+                      <option value="마음가짐">마음가짐</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label for="reflectionTitle">제목</label>
+                  <input id="reflectionTitle" placeholder="예: 턱걸이 횟수가 줄어드는 이유는?">
+                </div>
+                <div class="form-field">
+                  <label for="reflectionBody">질문 또는 성찰 내용</label>
+                  <textarea id="reflectionBody" placeholder="상황, 느낀 점, 궁금한 점을 적어주세요."></textarea>
+                </div>
+                <div class="form-field">
+                  <label for="reflectionAnswer">답변 또는 나중에 확인한 내용</label>
+                  <textarea id="reflectionAnswer" placeholder="비워두었다가 추후 답변을 추가해도 됩니다."></textarea>
+                </div>
+                <div class="actions" style="margin-top:14px">
+                  <button class="btn btn-primary" id="saveReflectionBtn">저장 및 자동 정리</button>
+                  <button class="btn" id="clearReflectionBtn">입력 비우기</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">ATP 메모</h2>
+              </div>
+              <div class="panel-body">
+                <div class="callout">이 기록장에서는 ATP를 단순한 배터리라기보다, 에너지를 전달하고 다시 충전되는 <strong>충전기 개념</strong>으로 설명합니다.</div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div class="history-top">
+              <div>
+                <h2 class="panel-title">질문과 성찰 보관함</h2>
+                <p class="panel-desc">분류와 요약 결과를 나중에 다시 확인할 수 있습니다.</p>
+              </div>
+              <select id="reflectionFilter" style="width:auto">
+                <option value="전체">전체</option>
+                <option value="질문">질문</option>
+                <option value="성찰">성찰</option>
+                <option value="미답변">미답변</option>
+              </select>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="reflection-list" id="reflectionList"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="page-settings">
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">연결 설정</h2>
+            <p class="panel-desc">Google 로그인 후 Firebase에 계정별로 동기화됩니다. GPT 요약은 Firebase Functions 배포 후 활성화됩니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div>
+                <label for="functionsRegion">Functions 지역</label>
+                <input id="functionsRegion" value="asia-northeast3">
+              </div>
+              <div>
+                <label for="aiFunctionName">AI 함수 이름</label>
+                <input id="aiFunctionName" value="analyzeWorkoutContent">
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="customExercise">운동 목록에 추가</label>
+              <div class="entry-row" style="grid-template-columns:1fr 100px 150px">
+                <input id="customExercise" placeholder="예: 런지">
+                <select id="customExerciseUnit">
+                  <option value="회">회</option>
+                  <option value="초">초</option>
+                  <option value="분">분</option>
+                  <option value="km">km</option>
+                </select>
+                <button class="btn" id="addExerciseBtn">운동 추가</button>
+              </div>
+            </div>
+            <div class="actions" style="margin-top:14px">
+              <button class="btn btn-primary" id="saveSettingsBtn">설정 저장</button>
+              <button class="btn" id="migrateLegacyBtn">기존 기록 가져오기</button>
+            </div>
+            <p class="panel-desc" style="margin-top:16px">OpenAI API 키는 이 화면이나 HTML 코드에 넣지 않습니다. Firebase Secret Manager에만 보관합니다.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="exerciseModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exerciseModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="exerciseModalTitle">무슨 운동을 할 것인가요?</h2>
+          <p>운동을 선택하면 이전 최고·평균 기록을 먼저 보여드립니다.</p>
+        </div>
+        <button class="btn" id="closeExerciseModalBtn">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div class="exercise-grid" id="exerciseGrid"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import {
+      getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+    import {
+      getFunctions, httpsCallable
+    } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-functions.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBHKXTWiBFSNYG8SkP7nzzL--nbSic8b7A",
+      authDomain: "exer-ce591.firebaseapp.com",
+      projectId: "exer-ce591",
+      storageBucket: "exer-ce591.firebasestorage.app",
+      messagingSenderId: "222550762314",
+      appId: "1:222550762314:web:129615a6cd4a79bdd957b3"
+    };
+
+    const DEFAULT_EXERCISES = [
+      { key: "squat", name: "스쿼트", unit: "회" },
+      { key: "pullup", name: "턱걸이", unit: "회" },
+      { key: "dips", name: "딥스", unit: "회" },
+      { key: "pushup", name: "팔굽혀펴기", unit: "회" },
+      { key: "plank", name: "플랭크", unit: "초" },
+      { key: "deadhang", name: "데드행", unit: "초" },
+      { key: "negpull", name: "네거티브 턱걸이", unit: "회" },
+      { key: "running", name: "달리기", unit: "초" },
+      { key: "walking", name: "걷기", unit: "분" }
+    ];
+
+    const KEYS = {
+      sessions: "workout-v3-sessions",
+      reflections: "workout-v3-reflections",
+      active: "workout-v3-active-session",
+      settings: "workout-v3-settings",
+      exercises: "workout-v3-exercises",
+      legacy: "workout-manager-v2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    const state = {
+      sessions: readJson(KEYS.sessions, []),
+      reflections: readJson(KEYS.reflections, []),
+      activeSession: readJson(KEYS.active, null),
+      exercises: readJson(KEYS.exercises, DEFAULT_EXERCISES),
+      currentExercise: null,
+      user: null,
+      unsubscribeSessions: null,
+      unsubscribeReflections: null,
+      timer: null,
+      settings: {
+        functionsRegion: "asia-northeast3",
+        aiFunctionName: "analyzeWorkoutContent",
+        ...readJson(KEYS.settings, {})
+      }
+    };
+
+    const $ = id => document.getElementById(id);
+
+    function readJson(key, fallback) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key));
+        return parsed ?? fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function writeJson(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function round(value, digits = 1) {
+      const p = 10 ** digits;
+      return Math.round(Number(value || 0) * p) / p;
+    }
+
+    function nowIso() {
+      return new Date().toISOString();
+    }
+
+    function localDateKey(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateTime(iso) {
+      if (!iso) return "-";
+      return new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        weekday: "short", hour: "2-digit", minute: "2-digit"
+      }).format(new Date(iso));
+    }
+
+    function durationSeconds(startedAt, endedAt = nowIso()) {
+      return Math.max(0, Math.round((new Date(endedAt) - new Date(startedAt)) / 1000));
+    }
+
+    function formatDuration(seconds) {
+      const sec = Math.max(0, Number(seconds || 0));
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return [h, m, s].map(v => String(v).padStart(2, "0")).join(":");
+    }
+
+    function slugify(text) {
+      return String(text || "exercise")
+        .trim().toLowerCase()
+        .replace(/[^a-z0-9가-힣]+/g, "-")
+        .replace(/^-|-$/g, "") || `exercise-${Date.now()}`;
+    }
+
+    function showToast(message) {
+      const toast = $("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2400);
+    }
+
+    function setSyncStatus(mode, text) {
+      $("syncDot").className = `sync-dot ${mode || ""}`;
+      $("syncText").textContent = text;
+    }
+
+    function showPage(page) {
+      document.querySelectorAll(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.page === page));
+      document.querySelectorAll(".page").forEach(section => section.classList.toggle("active", section.id === `page-${page}`));
+      if (page === "history") renderHistory();
+      if (page === "reflection") renderReflections();
+    }
+
+    function getExercise(key) {
+      return state.exercises.find(item => item.key === key);
+    }
+
+    function setsForSession(session) {
+      return Array.isArray(session?.sets) ? session.sets : [];
+    }
+
+    function exerciseHistory(exerciseKey) {
+      const sets = state.sessions.flatMap(session => setsForSession(session).filter(set => set.exerciseKey === exerciseKey));
+      const dayTotals = new Map();
+      state.sessions.forEach(session => {
+        const total = setsForSession(session)
+          .filter(set => set.exerciseKey === exerciseKey)
+          .reduce((sum, set) => sum + Number(set.value || 0), 0);
+        if (total > 0) dayTotals.set(session.date || session.id, total);
+      });
+      const values = sets.map(set => Number(set.value || 0)).filter(v => v > 0);
+      return {
+        setBest: values.length ? Math.max(...values) : 0,
+        dayBest: dayTotals.size ? Math.max(...dayTotals.values()) : 0,
+        average: values.length ? round(values.reduce((a, b) => a + b, 0) / values.length, 1) : 0,
+        count: values.length
+      };
+    }
+
+    function setNumberFor(exerciseKey) {
+      return setsForSession(state.activeSession).filter(set => set.exerciseKey === exerciseKey).length + 1;
+    }
+
+    function startWorkout() {
+      if (state.activeSession) {
+        renderActiveSession();
+        openExerciseModal();
+        return;
+      }
+      $("completedSummaryPanel").hidden = true;
+      const startedAt = nowIso();
+      state.activeSession = {
+        id: `session-${Date.now()}`,
+        date: localDateKey(),
+        startedAt,
+        endedAt: null,
+        durationSeconds: 0,
+        sets: [],
+        summaryRows: [],
+        localSummary: "",
+        aiSummary: "",
+        createdAt: startedAt
+      };
+      persistActiveSession();
+      renderActiveSession();
+      openExerciseModal();
+    }
+
+    function persistActiveSession() {
+      writeJson(KEYS.active, state.activeSession);
+    }
+
+    function renderActiveSession() {
+      const active = !!state.activeSession;
+      $("idleWorkout").hidden = active;
+      $("activeWorkout").hidden = !active;
+      if (!active) {
+        clearInterval(state.timer);
+        return;
+      }
+
+      $("sessionDate").textContent = `${state.activeSession.date} 운동`;
+      $("sessionTimeMeta").innerHTML = `<span>시작 ${escapeHtml(formatDateTime(state.activeSession.startedAt))}</span>`;
+      renderCurrentSets();
+      updateTimer();
+      clearInterval(state.timer);
+      state.timer = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      if (!state.activeSession) return;
+      $("sessionTimer").textContent = formatDuration(durationSeconds(state.activeSession.startedAt));
+    }
+
+    function openExerciseModal() {
+      if (!state.activeSession) return;
+      renderExerciseOptions();
+      $("exerciseModal").hidden = false;
+      setTimeout(() => $("exerciseGrid").querySelector("button")?.focus(), 20);
+    }
+
+    function closeExerciseModal() {
+      $("exerciseModal").hidden = true;
+    }
+
+    function renderExerciseOptions() {
+      $("exerciseGrid").innerHTML = state.exercises.map(exercise => {
+        const stats = exerciseHistory(exercise.key);
+        const nextSet = setNumberFor(exercise.key);
+        const detail = stats.count
+          ? `다음 ${nextSet}세트 · 최고 ${stats.setBest}${exercise.unit} · 평균 ${stats.average}${exercise.unit}`
+          : `다음 ${nextSet}세트 · 아직 이전 기록 없음`;
+        return `
+          <button class="exercise-option" data-exercise="${escapeHtml(exercise.key)}">
+            <b>${escapeHtml(exercise.name)}</b>
+            <span>${escapeHtml(detail)}</span>
+          </button>
+        `;
+      }).join("");
+      $("exerciseGrid").querySelectorAll("[data-exercise]").forEach(button => {
+        button.addEventListener("click", () => selectExercise(button.dataset.exercise));
+      });
+    }
+
+    function selectExercise(key) {
+      const exercise = getExercise(key);
+      if (!exercise) return;
+      state.currentExercise = exercise;
+      $("currentExerciseName").textContent = exercise.name;
+      $("currentExerciseSet").textContent = `${setNumberFor(key)}세트 기록`;
+      $("setUnit").value = exercise.unit;
+      $("setValue").value = "";
+      $("exerciseEntry").hidden = false;
+      renderSelectedExerciseStats();
+      closeExerciseModal();
+      setTimeout(() => $("setValue").focus(), 50);
+    }
+
+    function renderSelectedExerciseStats() {
+      if (!state.currentExercise) return;
+      const stats = exerciseHistory(state.currentExercise.key);
+      const unit = state.currentExercise.unit;
+      $("statSetBest").textContent = stats.count ? `${stats.setBest}${unit}` : "-";
+      $("statDayBest").textContent = stats.count ? `${stats.dayBest}${unit}` : "-";
+      $("statAverage").textContent = stats.count ? `${stats.average}${unit}` : "-";
+    }
+
+    function completeSet() {
+      if (!state.activeSession || !state.currentExercise) {
+        showToast("먼저 운동을 선택해주세요.");
+        return;
+      }
+      const value = Number($("setValue").value);
+      if (!Number.isFinite(value) || value <= 0) {
+        showToast("0보다 큰 기록을 입력해주세요.");
+        $("setValue").focus();
+        return;
+      }
+      const unit = $("setUnit").value;
+      const setNo = setNumberFor(state.currentExercise.key);
+      state.activeSession.sets.push({
+        id: `set-${Date.now()}`,
+        exerciseKey: state.currentExercise.key,
+        exerciseName: state.currentExercise.name,
+        setNo,
+        value,
+        unit,
+        recordedAt: nowIso()
+      });
+      persistActiveSession();
+      renderCurrentSets();
+      showToast(`${state.currentExercise.name} ${setNo}세트 기록 완료`);
+      state.currentExercise = null;
+      $("exerciseEntry").hidden = true;
+      openExerciseModal();
+    }
+
+    function renderCurrentSets() {
+      const sets = setsForSession(state.activeSession);
+      if (!sets.length) {
+        $("currentSetList").innerHTML = '<div class="empty">완료한 세트가 없습니다.</div>';
+        return;
+      }
+      $("currentSetList").innerHTML = sets.map(set => `
+        <div class="set-row">
+          <div>
+            <b>${escapeHtml(set.exerciseName)} ${set.setNo}세트</b>
+            <span>${escapeHtml(formatDateTime(set.recordedAt))}</span>
+          </div>
+          <strong>${escapeHtml(set.value)}${escapeHtml(set.unit)}</strong>
+        </div>
+      `).join("");
+    }
+
+    function buildSummaryRows(session) {
+      const grouped = new Map();
+      setsForSession(session).forEach(set => {
+        const key = `${set.exerciseKey}::${set.unit}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, { exerciseKey: set.exerciseKey, exerciseName: set.exerciseName, unit: set.unit, values: [] });
+        }
+        grouped.get(key).values.push(Number(set.value || 0));
+      });
+      return [...grouped.values()].map(group => {
+        const total = group.values.reduce((a, b) => a + b, 0);
+        return {
+          exerciseKey: group.exerciseKey,
+          exerciseName: group.exerciseName,
+          unit: group.unit,
+          sets: group.values.length,
+          values: group.values,
+          total: round(total, 2),
+          best: round(Math.max(...group.values), 2),
+          average: round(total / group.values.length, 1)
+        };
+      });
+    }
+
+    function buildLocalWorkoutSummary(session) {
+      const rows = session.summaryRows || buildSummaryRows(session);
+      const names = rows.map(row => row.exerciseName).join(", ");
+      const totalSets = rows.reduce((sum, row) => sum + row.sets, 0);
+      const minutes = Math.max(1, Math.round(Number(session.durationSeconds || 0) / 60));
+      if (!rows.length) return "완료한 세트 없이 운동을 종료했습니다.";
+      return `${minutes}분 동안 ${names} 운동을 총 ${totalSets}세트 완료했습니다. 다음 운동에서는 최고 기록보다 자세와 꾸준함을 먼저 확인해보세요.`;
+    }
+
+    async function endWorkout() {
+      if (!state.activeSession) return;
+      const sets = setsForSession(state.activeSession);
+      if (!sets.length && !confirm("완료한 세트가 없습니다. 그래도 운동을 종료할까요?")) return;
+      const endedAt = nowIso();
+      const completed = {
+        ...state.activeSession,
+        endedAt,
+        durationSeconds: durationSeconds(state.activeSession.startedAt, endedAt),
+        summaryRows: buildSummaryRows(state.activeSession),
+        updatedAt: endedAt
+      };
+      completed.localSummary = buildLocalWorkoutSummary(completed);
+
+      state.sessions = [completed, ...state.sessions.filter(item => item.id !== completed.id)]
+        .sort((a, b) => String(b.startedAt || "").localeCompare(String(a.startedAt || "")));
+      writeJson(KEYS.sessions, state.sessions);
+      state.activeSession = null;
+      state.currentExercise = null;
+      localStorage.removeItem(KEYS.active);
+      clearInterval(state.timer);
+      renderActiveSession();
+      renderCompletedSummary(completed);
+      renderHistory();
+
+      try {
+        await saveSessionCloud(completed);
+        showToast("운동 기록을 자동 백업했습니다.");
+      } catch (error) {
+        console.error(error);
+        showToast("기기에 저장했습니다. Firebase 연결 후 다시 동기화됩니다.");
+      }
+
+      const analysis = await requestAiAnalysis("workout", completed);
+      if (analysis?.summary) {
+        completed.aiSummary = analysis.summary;
+        completed.aiHighlights = analysis.highlights || [];
+        completed.aiNextAction = analysis.nextAction || "";
+        state.sessions = state.sessions.map(item => item.id === completed.id ? completed : item);
+        writeJson(KEYS.sessions, state.sessions);
+        renderCompletedSummary(completed);
+        renderHistory();
+        try { await saveSessionCloud(completed); } catch {}
+      }
+    }
+
+    function summaryTableHtml(session) {
+      const rows = session.summaryRows || buildSummaryRows(session);
+      if (!rows.length) return '<div class="empty">기록된 세트가 없습니다.</div>';
+      return `
+        <div class="table-scroll">
+          <table class="summary-table">
+            <thead><tr><th>운동</th><th>세트</th><th>세트별</th><th>최고</th><th>평균</th><th>합계</th></tr></thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td><strong>${escapeHtml(row.exerciseName)}</strong></td>
+                  <td>${row.sets}</td>
+                  <td>${row.values.map(value => `${escapeHtml(value)}${escapeHtml(row.unit)}`).join(", ")}</td>
+                  <td>${escapeHtml(row.best)}${escapeHtml(row.unit)}</td>
+                  <td>${escapeHtml(row.average)}${escapeHtml(row.unit)}</td>
+                  <td>${escapeHtml(row.total)}${escapeHtml(row.unit)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderCompletedSummary(session) {
+      $("completedSummaryPanel").hidden = false;
+      const summary = session.aiSummary || session.localSummary;
+      $("completedSummary").innerHTML = `
+        <div class="meta">
+          <span>시작 ${escapeHtml(formatDateTime(session.startedAt))}</span>
+          <span>종료 ${escapeHtml(formatDateTime(session.endedAt))}</span>
+          <span>운동시간 ${escapeHtml(formatDuration(session.durationSeconds))}</span>
+        </div>
+        <div style="height:12px"></div>
+        ${summaryTableHtml(session)}
+        <div class="ai-summary"><strong>${session.aiSummary ? "AI 요약" : "자동 요약"}</strong><br>${escapeHtml(summary)}</div>
+      `;
+    }
+
+    function renderHistory() {
+      $("totalDays").textContent = new Set(state.sessions.map(item => item.date)).size;
+      $("totalSets").textContent = state.sessions.reduce((sum, item) => sum + setsForSession(item).length, 0);
+      $("lastWorkout").textContent = state.sessions[0]?.date || "-";
+      if (!state.sessions.length) {
+        $("historyList").innerHTML = '<div class="empty">저장된 운동 기록이 없습니다.</div>';
+        return;
+      }
+      $("historyList").innerHTML = state.sessions.map(session => {
+        const totalSetCount = setsForSession(session).length;
+        return `
+          <article class="history-item">
+            <div class="history-top">
+              <div>
+                <h3>${escapeHtml(session.date)} 운동</h3>
+                <div class="meta">
+                  <span>${escapeHtml(formatDuration(session.durationSeconds))}</span>
+                  <span>${totalSetCount}세트</span>
+                  <span>${escapeHtml(formatDateTime(session.startedAt))}</span>
+                </div>
+              </div>
+              <button class="btn" data-history-toggle="${escapeHtml(session.id)}">요약 보기</button>
+            </div>
+            <div id="history-${escapeHtml(session.id)}" hidden style="margin-top:14px">
+              ${summaryTableHtml(session)}
+              <div class="ai-summary">${escapeHtml(session.aiSummary || session.localSummary || buildLocalWorkoutSummary(session))}</div>
+              <div class="actions" style="margin-top:10px">
+                <button class="btn btn-danger" data-delete-session="${escapeHtml(session.id)}">기록 삭제</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+      document.querySelectorAll("[data-history-toggle]").forEach(button => {
+        button.addEventListener("click", () => {
+          const detail = $(`history-${button.dataset.historyToggle}`);
+          detail.hidden = !detail.hidden;
+          button.textContent = detail.hidden ? "요약 보기" : "접기";
+        });
+      });
+      document.querySelectorAll("[data-delete-session]").forEach(button => {
+        button.addEventListener("click", () => deleteSession(button.dataset.deleteSession));
+      });
+    }
+
+    async function deleteSession(id) {
+      if (!confirm("이 운동 기록을 삭제할까요?")) return;
+      state.sessions = state.sessions.filter(item => item.id !== id);
+      writeJson(KEYS.sessions, state.sessions);
+      renderHistory();
+      if (state.user) {
+        try { await deleteDoc(doc(db, "users", state.user.uid, "workoutSessions", id)); } catch (error) { console.error(error); }
+      }
+    }
+
+    function classifyReflectionLocally(data) {
+      if (data.category && data.category !== "자동") return data.category;
+      const text = `${data.title} ${data.body} ${data.answer}`.toLowerCase();
+      if (/통증|아프|부상|무릎|허리|어깨/.test(text)) return "통증·안전";
+      if (/먹|식단|영양|atp|에너지|단백질/.test(text)) return "영양·에너지";
+      if (/회복|휴식|수면|피로/.test(text)) return "회복";
+      if (/목표|기록 단축|횟수 증가/.test(text)) return "목표";
+      if (/마음|의욕|포기|꾸준|동기/.test(text)) return "마음가짐";
+      return "운동방법";
+    }
+
+    function summarizeReflectionLocally(data) {
+      const source = data.answer || data.body;
+      const clean = source.replace(/\s+/g, " ").trim();
+      if (!clean) return "내용이 아직 없습니다.";
+      return clean.length > 110 ? `${clean.slice(0, 110)}...` : clean;
+    }
+
+    async function saveReflection() {
+      const title = $("reflectionTitle").value.trim();
+      const body = $("reflectionBody").value.trim();
+      const answer = $("reflectionAnswer").value.trim();
+      if (!title || !body) {
+        showToast("제목과 내용을 입력해주세요.");
+        return;
+      }
+      const existingId = $("saveReflectionBtn").dataset.editId || "";
+      const existing = state.reflections.find(item => item.id === existingId);
+      const data = {
+        id: existingId || `reflection-${Date.now()}`,
+        type: $("reflectionType").value,
+        category: $("reflectionCategory").value,
+        title,
+        body,
+        answer,
+        status: answer ? "답변완료" : "미답변",
+        createdAt: existing?.createdAt || nowIso(),
+        updatedAt: nowIso()
+      };
+      data.autoCategory = classifyReflectionLocally(data);
+      data.autoSummary = summarizeReflectionLocally(data);
+
+      state.reflections = [data, ...state.reflections.filter(item => item.id !== data.id)]
+        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      writeJson(KEYS.reflections, state.reflections);
+      renderReflections();
+      clearReflectionForm();
+      try { await saveReflectionCloud(data); } catch (error) { console.error(error); }
+      showToast("질문과 성찰을 저장했습니다.");
+
+      const analysis = await requestAiAnalysis("reflection", data);
+      if (analysis) {
+        data.autoCategory = analysis.category || data.autoCategory;
+        data.autoSummary = analysis.summary || data.autoSummary;
+        data.keywords = analysis.keywords || [];
+        data.followUp = analysis.followUp || "";
+        state.reflections = state.reflections.map(item => item.id === data.id ? data : item);
+        writeJson(KEYS.reflections, state.reflections);
+        renderReflections();
+        try { await saveReflectionCloud(data); } catch {}
+      }
+    }
+
+    function clearReflectionForm() {
+      $("reflectionType").value = "질문";
+      $("reflectionCategory").value = "자동";
+      $("reflectionTitle").value = "";
+      $("reflectionBody").value = "";
+      $("reflectionAnswer").value = "";
+      delete $("saveReflectionBtn").dataset.editId;
+      $("saveReflectionBtn").textContent = "저장 및 자동 정리";
+    }
+
+    function editReflection(id) {
+      const item = state.reflections.find(entry => entry.id === id);
+      if (!item) return;
+      $("reflectionType").value = item.type;
+      $("reflectionCategory").value = item.category || "자동";
+      $("reflectionTitle").value = item.title;
+      $("reflectionBody").value = item.body;
+      $("reflectionAnswer").value = item.answer || "";
+      $("saveReflectionBtn").dataset.editId = item.id;
+      $("saveReflectionBtn").textContent = "수정 및 다시 정리";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function renderReflections() {
+      const filter = $("reflectionFilter").value;
+      const items = state.reflections.filter(item => {
+        if (filter === "전체") return true;
+        if (filter === "미답변") return !item.answer;
+        return item.type === filter;
+      });
+      if (!items.length) {
+        $("reflectionList").innerHTML = '<div class="empty">조건에 맞는 기록이 없습니다.</div>';
+        return;
+      }
+      $("reflectionList").innerHTML = items.map(item => `
+        <article class="reflection-item">
+          <div class="reflection-top">
+            <div>
+              <h3>${escapeHtml(item.title)}</h3>
+              <div class="meta">
+                <span class="badge">${escapeHtml(item.type)}</span>
+                <span class="badge">${escapeHtml(item.autoCategory || item.category)}</span>
+                <span>${escapeHtml(formatDateTime(item.updatedAt))}</span>
+              </div>
+            </div>
+            <button class="btn" data-edit-reflection="${escapeHtml(item.id)}">답변·수정</button>
+          </div>
+          <div class="reflection-content">${escapeHtml(item.body)}</div>
+          ${item.answer ? `<div class="answer-box"><strong>답변</strong><br>${escapeHtml(item.answer)}</div>` : ""}
+          <div class="ai-summary"><strong>자동 요약</strong><br>${escapeHtml(item.autoSummary)}</div>
+          ${item.followUp ? `<div class="panel-desc"><strong>추후 확인:</strong> ${escapeHtml(item.followUp)}</div>` : ""}
+        </article>
+      `).join("");
+      document.querySelectorAll("[data-edit-reflection]").forEach(button => {
+        button.addEventListener("click", () => editReflection(button.dataset.editReflection));
+      });
+    }
+
+    async function requestAiAnalysis(type, payload) {
+      if (!state.user) return null;
+      try {
+        const functions = getFunctions(app, state.settings.functionsRegion);
+        const callable = httpsCallable(functions, state.settings.aiFunctionName);
+        const result = await callable({ type, payload });
+        return result.data || null;
+      } catch (error) {
+        console.info("AI function unavailable; local summary retained.", error);
+        return null;
+      }
+    }
+
+    async function saveSessionCloud(session) {
+      if (!state.user) throw new Error("Firebase authentication is not ready.");
+      await setDoc(doc(db, "users", state.user.uid, "workoutSessions", session.id), {
+        ...session,
+        ownerUid: state.user.uid,
+        serverUpdatedAt: serverTimestamp()
+      });
+    }
+
+    async function saveReflectionCloud(item) {
+      if (!state.user) throw new Error("Firebase authentication is not ready.");
+      await setDoc(doc(db, "users", state.user.uid, "workoutReflections", item.id), {
+        ...item,
+        ownerUid: state.user.uid,
+        serverUpdatedAt: serverTimestamp()
+      });
+    }
+
+    function subscribeCloudData() {
+      state.unsubscribeSessions?.();
+      state.unsubscribeReflections?.();
+      state.unsubscribeSessions = onSnapshot(
+        collection(db, "users", state.user.uid, "workoutSessions"),
+        snapshot => {
+          state.sessions = snapshot.docs
+            .map(item => ({ id: item.id, ...item.data() }))
+            .sort((a, b) => String(b.startedAt || "").localeCompare(String(a.startedAt || "")));
+          writeJson(KEYS.sessions, state.sessions);
+          renderHistory();
+          setSyncStatus("online", "Firebase 실시간 저장");
+        },
+        error => {
+          console.error(error);
+          setSyncStatus("error", "Firebase 읽기 권한을 확인하세요");
+        }
+      );
+      state.unsubscribeReflections = onSnapshot(
+        collection(db, "users", state.user.uid, "workoutReflections"),
+        snapshot => {
+          state.reflections = snapshot.docs
+            .map(item => ({ id: item.id, ...item.data() }))
+            .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+          writeJson(KEYS.reflections, state.reflections);
+          renderReflections();
+        },
+        error => console.error(error)
+      );
+    }
+
+    async function syncLocalToCloud() {
+      if (!state.user) return;
+      const jobs = [
+        ...state.sessions.map(saveSessionCloud),
+        ...state.reflections.map(saveReflectionCloud)
+      ];
+      await Promise.allSettled(jobs);
+    }
+
+    function migrateLegacyRecords(showMessage = false) {
+      const legacy = readJson(KEYS.legacy, []);
+      if (!Array.isArray(legacy) || !legacy.length) {
+        if (showMessage) showToast("가져올 기존 기록이 없습니다.");
+        return 0;
+      }
+      let added = 0;
+      legacy.forEach(record => {
+        const id = `legacy-${record.id || record.date}`;
+        if (state.sessions.some(item => item.id === id)) return;
+        const sets = [];
+        if (Number(record.running || 0) > 0) {
+          sets.push({
+            id: `${id}-running`,
+            exerciseKey: "running",
+            exerciseName: "달리기",
+            setNo: 1,
+            value: Number(record.running),
+            unit: "초",
+            recordedAt: `${record.date}T00:00:00+09:00`
+          });
+        }
+        (record.rounds || []).forEach((roundData, roundIndex) => {
+          DEFAULT_EXERCISES.forEach(exercise => {
+            if (exercise.key === "running") return;
+            const value = Number(roundData[exercise.key] || 0);
+            if (value <= 0) return;
+            sets.push({
+              id: `${id}-${exercise.key}-${roundIndex + 1}`,
+              exerciseKey: exercise.key,
+              exerciseName: exercise.name,
+              setNo: roundIndex + 1,
+              value,
+              unit: exercise.unit,
+              recordedAt: `${record.date}T00:00:00+09:00`
+            });
+          });
+        });
+        const session = {
+          id,
+          date: record.date,
+          startedAt: `${record.date}T00:00:00+09:00`,
+          endedAt: `${record.date}T00:00:00+09:00`,
+          durationSeconds: 0,
+          sets,
+          importedFromLegacy: true,
+          createdAt: `${record.date}T00:00:00+09:00`,
+          updatedAt: nowIso()
+        };
+        session.summaryRows = buildSummaryRows(session);
+        session.localSummary = buildLocalWorkoutSummary(session);
+        state.sessions.push(session);
+        added += 1;
+      });
+      state.sessions.sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
+      writeJson(KEYS.sessions, state.sessions);
+      renderHistory();
+      if (state.user) syncLocalToCloud();
+      if (showMessage) showToast(`${added}개의 기존 기록을 가져왔습니다.`);
+      return added;
+    }
+
+    function addCustomExercise() {
+      const name = $("customExercise").value.trim();
+      const unit = $("customExerciseUnit").value;
+      if (!name) return showToast("운동 이름을 입력해주세요.");
+      const key = slugify(name);
+      if (state.exercises.some(item => item.key === key || item.name === name)) {
+        return showToast("이미 있는 운동입니다.");
+      }
+      state.exercises.push({ key, name, unit });
+      writeJson(KEYS.exercises, state.exercises);
+      $("customExercise").value = "";
+      showToast("운동 목록에 추가했습니다.");
+    }
+
+    function saveSettings() {
+      state.settings.functionsRegion = $("functionsRegion").value.trim() || "asia-northeast3";
+      state.settings.aiFunctionName = $("aiFunctionName").value.trim() || "analyzeWorkoutContent";
+      writeJson(KEYS.settings, state.settings);
+      showToast("설정을 저장했습니다.");
+    }
+
+    function exportAll() {
+      const data = {
+        exportedAt: nowIso(),
+        sessions: state.sessions,
+        reflections: state.reflections,
+        exercises: state.exercises
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `운동기록_전체백업_${localDateKey()}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function bindEvents() {
+      document.querySelectorAll(".tab").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
+      $("loginBtn").addEventListener("click", loginWithGoogle);
+      $("logoutBtn").addEventListener("click", logoutFirebase);
+      $("startWorkoutBtn").addEventListener("click", startWorkout);
+      $("chooseExerciseBtn").addEventListener("click", openExerciseModal);
+      $("closeExerciseModalBtn").addEventListener("click", closeExerciseModal);
+      $("exerciseModal").addEventListener("click", event => {
+        if (event.target === $("exerciseModal")) closeExerciseModal();
+      });
+      $("completeSetBtn").addEventListener("click", completeSet);
+      $("setValue").addEventListener("keydown", event => {
+        if (event.key === "Enter") completeSet();
+      });
+      $("endWorkoutBtn").addEventListener("click", endWorkout);
+      $("saveReflectionBtn").addEventListener("click", saveReflection);
+      $("clearReflectionBtn").addEventListener("click", clearReflectionForm);
+      $("reflectionFilter").addEventListener("change", renderReflections);
+      $("addExerciseBtn").addEventListener("click", addCustomExercise);
+      $("saveSettingsBtn").addEventListener("click", saveSettings);
+      $("migrateLegacyBtn").addEventListener("click", () => migrateLegacyRecords(true));
+      $("exportBtn").addEventListener("click", exportAll);
+    }
+
+    async function loginWithGoogle() {
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("error", "Google 로그인을 확인해주세요");
+      }
+    }
+
+    async function logoutFirebase() {
+      await signOut(auth);
+    }
+
+    function initFirebase() {
+      onAuthStateChanged(auth, async user => {
+        state.user = user || null;
+        $("loginBtn").hidden = !!user;
+        $("logoutBtn").hidden = !user;
+
+        if (!user) {
+          state.unsubscribeSessions?.();
+          state.unsubscribeReflections?.();
+          state.unsubscribeSessions = null;
+          state.unsubscribeReflections = null;
+          setSyncStatus("", "기기 저장 모드");
+          return;
+        }
+
+        setSyncStatus("online", `${user.displayName || "Google 계정"} 연결됨`);
+        await syncLocalToCloud();
+        subscribeCloudData();
+      });
+    }
+
+    function init() {
+      $("functionsRegion").value = state.settings.functionsRegion;
+      $("aiFunctionName").value = state.settings.aiFunctionName;
+      bindEvents();
+      migrateLegacyRecords(false);
+      renderActiveSession();
+      renderHistory();
+      renderReflections();
+      initFirebase();
+    }
+
+    init();
+  </script>
+</body>
+</html>
